@@ -21,6 +21,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.FeatureManagement;
 using Serilog;
 using Scalar.AspNetCore;
+using HappyCode.NetCoreBoilerplate.Core.Services;
+
 
 namespace HappyCode.NetCoreBoilerplate.Api
 {
@@ -50,8 +52,7 @@ namespace HappyCode.NetCoreBoilerplate.Api
                 .AddApiExplorer()
                 .AddDataAnnotations();
 
-            //there is a difference between AddDbContext() and AddDbContextPool(), more info https://docs.microsoft.com/en-us/ef/core/what-is-new/ef-core-2.0#dbcontext-pooling and https://stackoverflow.com/questions/48443567/adddbcontext-or-adddbcontextpool
-            services.AddDbContext<EmployeesContext>(options => options.UseMySQL(_configuration.GetConnectionString("MySqlDb")), contextLifetime: ServiceLifetime.Transient, optionsLifetime: ServiceLifetime.Singleton);
+            services.AddDbContext<WeatherContext>(options => options.UseMySQL(_configuration.GetConnectionString("MySqlDb")), contextLifetime: ServiceLifetime.Transient, optionsLifetime: ServiceLifetime.Singleton);
             services.AddDbContextPool<CarsContext>(options => options.UseSqlServer(_configuration.GetConnectionString("MsSqlDb")), poolSize: 10);
 
             services.Configure<ApiKeySettings>(_configuration.GetSection("ApiKey"));
@@ -66,6 +67,8 @@ namespace HappyCode.NetCoreBoilerplate.Api
             services.AddBooksModule(_configuration);
 
             services.AddFeatureManagement();
+            services.AddTransient<IWeatherService, WeatherService>();
+
 
             var healthChecksBuilder = services.AddHealthChecks()
                 .AddBooksModule(_configuration);

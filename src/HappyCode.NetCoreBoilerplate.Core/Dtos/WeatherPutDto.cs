@@ -2,9 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace HappyCode.NetCoreBoilerplate.Core.Dtos
 {
-    public class EmployeePutDto
+    public class WeatherPutDto
     {
         [Required]
-        public string LastName { get; set; }
+        public int Humidity { get; set; }
     }
 }

@@ -13,6 +13,9 @@ namespace HappyCode.NetCoreBoilerplate.Api.Infrastructure.Filters
     {
         public void OnException(ExceptionContext context)
         {
+
+            logger.LogError(context.Exception, "An API internal error has occurred");
+
             if (env.IsDevelopment())
             {
                 throw context.Exception;

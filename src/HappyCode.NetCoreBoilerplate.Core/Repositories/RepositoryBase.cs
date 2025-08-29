@@ -3,9 +3,9 @@ namespace HappyCode.NetCoreBoilerplate.Core.Repositories
     internal abstract class RepositoryBase<TEntity>
         where TEntity : class
     {
-        protected EmployeesContext DbContext { get; }
+        protected WeatherContext DbContext { get; }
 
-        protected RepositoryBase(EmployeesContext dbContext)
+        protected RepositoryBase(WeatherContext dbContext)
         {
             DbContext = dbContext;
         }

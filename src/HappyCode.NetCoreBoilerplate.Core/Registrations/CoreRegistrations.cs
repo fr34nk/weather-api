@@ -9,7 +9,7 @@ namespace HappyCode.NetCoreBoilerplate.Core.Registrations
     {
         public static IServiceCollection AddCoreComponents(this IServiceCollection services)
         {
-            services.AddTransient<IEmployeeRepository, EmployeeRepository>();
+            services.AddTransient<IWeatherRepository, WeatherRepository>();
             services.AddScoped<ICarService, CarService>();
             services.AddSingleton<VersionProvider>();
 
