@@ -8,6 +8,7 @@ using Google.Protobuf.WellKnownTypes;
 using HappyCode.NetCoreBoilerplate.Core.Dtos;
 using Microsoft.EntityFrameworkCore;
 using HappyCode.NetCoreBoilerplate.Core;
+using MySqlX.XDevAPI.Common;
 
 
 
@@ -25,8 +26,8 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
 
         public string ToQueryString()
         {
-            var hourlyParam = string.Join(",", Hourly);
-            return $"?latitude={Latitude}&longitude={Longitude}&past_days={PastDays}&hourly={hourlyParam}";
+            var HourlyParam = string.Join(",", Hourly);
+            return $"?latitude={Latitude}&longitude={Longitude}&past_days={PastDays}&hourly={HourlyParam}&current=temperature_2m,relative_humidity_2m,rain,wind_speed_10m&forecast_days=3";
         }
     }
 
@@ -110,7 +111,11 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
             Console.Write(requestParams.PastDays);
 
             var url = "forecast" + requestParams.ToQueryString();
-            return await _httpClient.GetFromJsonAsync<ForecastResponse>(url);
+            var result = await _httpClient.GetFromJsonAsync<ForecastResponse>(url);
+
+            Console.Write(result.ToString());
+
+            return result;
         }
     }
 }
