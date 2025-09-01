@@ -4,8 +4,8 @@ namespace HappyCode.NetCoreBoilerplate.Core.Dtos
     {
         public int Id { get; set; }
         public DateTime Time { get; set; }
-        public int Humidity  { get; set; }
-        public int WindSpeed { get; set; }
-        public int Temperature { get; set; }
+        public double Humidity  { get; set; }
+        public double WindSpeed { get; set; }
+        public double Temperature { get; set; }
     }
 }

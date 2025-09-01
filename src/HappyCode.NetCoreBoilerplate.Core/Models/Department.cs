@@ -21,9 +21,10 @@ namespace HappyCode.NetCoreBoilerplate.Core.Models
 
         [ForeignKey("MangerNo")]
         [InverseProperty("LeadingDepartments")]
-        public virtual Employee Manger { get; set; }
+        public virtual Weather Manger { get; set; }
 
         [InverseProperty("Department")]
-        public virtual ICollection<Employee> Employees { get; set; } = new HashSet<Employee>();
+        public virtual ICollection<Weather> Employees { get; set; } = new HashSet<Weather>();
     }
+    
 }

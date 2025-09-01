@@ -15,16 +15,16 @@ namespace HappyCode.NetCoreBoilerplate.Core.Models
         public DateTime Time { get; set; }
 
         [Required]
-        [Column("temperature", TypeName = "int(11)")]
-        public int Temperature { get; set; }
+        [Column("temperature", TypeName = "double")]
+        public double Temperature { get; set; }
 
         [Required]
-        [Column("humidity", TypeName = "int(11)")]
-        public int Humidity { get; set; }
+        [Column("humidity", TypeName = "double")]
+        public double Humidity { get; set; }
 
         [Required]
-        [Column("wind_speed", TypeName = "int(11)")]
-        public int WindSpeed { get; set; }
+        [Column("wind_speed", TypeName = "double")]
+        public double WindSpeed { get; set; }
 
     }
 }

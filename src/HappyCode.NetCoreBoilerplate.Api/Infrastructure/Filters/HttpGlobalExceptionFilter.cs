@@ -14,7 +14,40 @@ namespace HappyCode.NetCoreBoilerplate.Api.Infrastructure.Filters
         public void OnException(ExceptionContext context)
         {
 
+            Console.Write("An API internal error has occurred");
             logger.LogError(context.Exception, "An API internal error has occurred");
+
+            var ex = context.Exception;
+
+            string message = ex?.Message ?? "An unexpected error occurred.";
+
+            if (ex?.InnerException != null)
+            {
+                message += " | Inner: " + ex.InnerException.Message;
+            }
+
+            string dataErrors = "";
+            if (ex?.Data != null && ex.Data.Count > 0)
+            {
+                foreach (var key in ex.Data.Keys)
+                {
+                    dataErrors += $"{key}: {ex.Data[key]} ";
+                }
+            }
+
+            var problem = new ProblemDetails
+            {
+                Title = "Unhandled exception",
+                Detail = message + (string.IsNullOrWhiteSpace(dataErrors) ? "" : " | Data: " + dataErrors),
+                Status = 500
+            };
+
+            context.Result = new ObjectResult(problem)
+            {
+                StatusCode = 500
+            };
+
+            context.ExceptionHandled = true;
 
             if (env.IsDevelopment())
             {

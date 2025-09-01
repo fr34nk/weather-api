@@ -6,6 +6,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.FeatureManagement;
 using Microsoft.FeatureManagement.Mvc;
 using HappyCode.NetCoreBoilerplate.Core.Services;
+using HappyCode.NetCoreBoilerplate.Core.Models;
+using System.Linq;
+using Microsoft.Extensions.Logging;
+
+
 
 namespace HappyCode.NetCoreBoilerplate.Api.Controllers
 {
@@ -13,17 +18,23 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
     [Route("api/weather")]
     public class WeatherController : ApiControllerBase
     {
+
+        private readonly ILogger<WeatherController> _logger;
         private readonly IWeatherRepository _weatherRepository;
         private readonly IFeatureManager _featureManager;
-        private readonly IWeatherService _weatherService;
+        private readonly WeatherService _weatherService;
 
-        public WeatherController(IWeatherService weatherservice, IWeatherRepository weatherRepository, IFeatureManager featureManager)
+        public WeatherController(
+            ILogger<WeatherController> logger,
+            WeatherService weatherservice,
+            IWeatherRepository weatherRepository,
+            IFeatureManager featureManager
+        )
         {
-
+            _logger = logger;
             _weatherService = weatherservice;
             _weatherRepository = weatherRepository;
             _featureManager = featureManager;
-
         }
 
         [HttpGet]
@@ -35,26 +46,39 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
             return Ok(result);
         }
 
-        // [HttpGet("{id}")GetForecastAsync]
-        [HttpPost("g")]
+        [HttpPost("weather/average")]
         [ProducesResponseType(typeof(WeatherDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetForecastDaysAsync (
-            // int id,
+        public async Task<IActionResult> GetWeatherAsync(
             GetForecastDaysDto forecastFields,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default
+        )
         {
-
-            var result = await _weatherService.GetForecastAsync(
+            var forecastResult = await _weatherService.GetForecastAsync(
                 forecastFields.Latitude,
                 forecastFields.Longitude,
                 forecastFields.PastDays,
-                forecastFields.DataFieldTypes
+                ["temperature_2m", "relative_humidity_2m", "wind_speed_10m"]
             );
 
-            Console.Write(result.ToString());
-            return Ok(result);
+            List<WeatherDto> weatherList = _weatherService.FromHourlyForecast(forecastResult);
+            Weather[] modelArray = weatherList
+                .Select(dto => new Weather
+                {
+                    Time = dto.Time,
+                    Temperature = dto.Temperature,
+                    Humidity = dto.Humidity,
+                    WindSpeed = dto.WindSpeed
+                })
+                .ToArray();
+
+            var average = _weatherService.weatherAverage(modelArray);
+            _logger.LogDebug("Average: {Average}", average.ToString());
+
+            Weather insertedWeather = await _weatherRepository.InsertAsync(average, cancellationToken);
+            return Ok(insertedWeather);
         }
+
 
         [HttpGet("{id}/details")]
         [ProducesResponseType(typeof(WeatherDetailsDto), StatusCodes.Status200OK)]
@@ -64,10 +88,8 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
             CancellationToken cancellationToken = default)
         {
             var result = await _weatherRepository.GetByIdWithDetailsAsync(id, cancellationToken);
-            if (result == null)
-            {
-                return NotFound();
-            }
+            if (result == null) { return NotFound(); }
+
             return Ok(result);
         }
 
@@ -77,18 +99,6 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
         public async Task<IActionResult> GetOldestAsync(
             CancellationToken cancellationToken = default)
         {
-            if (await _featureManager.IsEnabledAsync(FeatureFlags.ConnectionInfo.ToString()))
-            {
-
-                return Ok(new WeatherDto
-                {
-                    Temperature = 12,
-                    Humidity = 13,
-                    WindSpeed = 14,
-                    Time = new DateTime(2025, 12, 12, 12, 12, 12)
-                });
-            }
-
             var result = await _weatherRepository.GetOldestAsync(cancellationToken);
             if (result == null)
             {
@@ -121,13 +131,9 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
             [FromBody] WeatherPostDto weatherPostDto,
             CancellationToken cancellationToken = default)
         {
-
-            Console.Write("insert async ==========");
-
             var result = await _weatherRepository.InsertAsync(weatherPostDto, cancellationToken);
             Response.Headers.Append("x-date-created", DateTime.UtcNow.ToString("s"));
             return CreatedAtAction("Get", new { id = result.Id }, result);
-
         }
 
         [HttpDelete("{id}")]

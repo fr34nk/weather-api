@@ -1,6 +1,13 @@
 using System.Diagnostics.CodeAnalysis;
 using HappyCode.NetCoreBoilerplate.Core.Models;
 using Microsoft.EntityFrameworkCore;
+using HappyCode.NetCoreBoilerplate.Core.Dtos;
+
+public class WeatherCollection : List<Weather>
+{
+    public WeatherCollection(): base()
+    {}
+}
 
 namespace HappyCode.NetCoreBoilerplate.Core
 {
@@ -9,8 +16,7 @@ namespace HappyCode.NetCoreBoilerplate.Core
     {
         public WeatherContext(DbContextOptions<WeatherContext> options)
             : base(options)
-        {
-        }
+        {}
 
         public virtual DbSet<Weather> Weather { get; set; }
 
@@ -18,16 +24,16 @@ namespace HappyCode.NetCoreBoilerplate.Core
         {
             modelBuilder.HasAnnotation("ProductVersion", "2.2.6-servicing-10079");
 
-           modelBuilder.Entity<Weather>(entity =>
-            {
-                entity.HasIndex(e => e.Id);
+            modelBuilder.Entity<Weather>(entity =>
+             {
+                 entity.HasIndex(e => e.Id);
 
-                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                 entity.Property(e => e.Id).ValueGeneratedOnAdd();
 
-                entity.Property(e => e.Temperature);
+                 entity.Property(e => e.Temperature);
 
-                entity.Property(e => e.Humidity);
-            });
+                 entity.Property(e => e.Humidity);
+             });
         }
     }
 }

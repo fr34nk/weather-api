@@ -22,6 +22,8 @@ using Microsoft.FeatureManagement;
 using Serilog;
 using Scalar.AspNetCore;
 using HappyCode.NetCoreBoilerplate.Core.Services;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
 
 
 namespace HappyCode.NetCoreBoilerplate.Api
@@ -35,10 +37,26 @@ namespace HappyCode.NetCoreBoilerplate.Api
             _configuration = configuration;
         }
 
-        public virtual void ConfigureServices(IServiceCollection services)
+        public async virtual void ConfigureServices(IServiceCollection services)
         {
             services.AddSerilog();
             services.AddSingleton<ExceptionMiddleware>();
+
+
+            services.AddHttpClient<WeatherService>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.open-meteo.com/v1/");
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            });
+
+            // if (!_featureManager.IsEnabled(FeatureFlags.ControllerLogs.ToString()))
+            if (false)
+            {
+                services.AddControllers(options =>
+                {
+                    options.Filters.Add<LogRequestBodyFilter>();
+                });
+            }
 
             services
                 .AddHttpContextAccessor()
@@ -58,6 +76,7 @@ namespace HappyCode.NetCoreBoilerplate.Api
             services.Configure<ApiKeySettings>(_configuration.GetSection("ApiKey"));
             services.AddOpenApi(_configuration);
 
+            // TODO Ping Host Service
             services.Configure<PingWebsiteSettings>(_configuration.GetSection("PingWebsite"));
             services.AddHttpClient(nameof(PingWebsiteBackgroundService));
             services.AddHostedService<PingWebsiteBackgroundService>();
@@ -67,7 +86,7 @@ namespace HappyCode.NetCoreBoilerplate.Api
             services.AddBooksModule(_configuration);
 
             services.AddFeatureManagement();
-            services.AddTransient<IWeatherService, WeatherService>();
+            services.AddTransient<WeatherService, WeatherService>();
 
 
             var healthChecksBuilder = services.AddHealthChecks()

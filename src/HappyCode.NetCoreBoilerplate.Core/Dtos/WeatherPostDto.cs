@@ -8,11 +8,11 @@ namespace HappyCode.NetCoreBoilerplate.Core.Dtos
         public DateTime Time { get; set; }
 
         [Required]
-        public int Humidity { get; set; }
+        public double Humidity { get; set; }
         [Required]
-        public int WindSpeed { get; set; }
+        public double WindSpeed { get; set; }
 
         [Required]
-        public int Temperature { get; set; }
+        public double Temperature { get; set; }
     }
 }

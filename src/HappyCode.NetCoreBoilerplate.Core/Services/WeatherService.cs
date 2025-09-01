@@ -9,7 +9,10 @@ using HappyCode.NetCoreBoilerplate.Core.Dtos;
 using Microsoft.EntityFrameworkCore;
 using HappyCode.NetCoreBoilerplate.Core;
 using MySqlX.XDevAPI.Common;
-
+using Microsoft.Extensions.Logging;
+using System.Text.Json;
+using System.ComponentModel.DataAnnotations;
+using HappyCode.NetCoreBoilerplate.Core.Models;
 
 
 namespace HappyCode.NetCoreBoilerplate.Core.Services
@@ -22,47 +25,19 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
 
         public int PastDays { get; set; } = 0;
 
-        public string[] Hourly { get; set; } = Array.Empty<string>();
+        // public string[] Hourly { get; set; } = Array.Empty<string>();
+        public string Hourly { get; set; }
 
         public string ToQueryString()
         {
             var HourlyParam = string.Join(",", Hourly);
-            return $"?latitude={Latitude}&longitude={Longitude}&past_days={PastDays}&hourly={HourlyParam}&current=temperature_2m,relative_humidity_2m,rain,wind_speed_10m&forecast_days=3";
+            return $"?latitude={Latitude}&longitude={Longitude}&past_days={PastDays}&forecast_days=3&hourly=temperature_2m,relative_humidity_2m,rain,wind_speed_10m";
         }
-    }
-
-    public class HourlyUnits
-    {
-        public string Time { get; set; } = string.Empty;
-        public string Temperature_2m { get; set; } = string.Empty;
-        public string Relative_humidity_2m { get; set; } = string.Empty;
-        public string Wind_speed_10m { get; set; } = string.Empty;
-    }
-
-    public class HourlyData
-    {
-        public List<string> Time { get; set; } = new();
-        public List<double> Temperature_2m { get; set; } = new();
-        public List<int> Relative_humidity_2m { get; set; } = new();
-        public List<double> Wind_speed_10m { get; set; } = new();
-    }
-
-    public class ForecastResponse
-    {
-        public double Latitude { get; set; }
-        public double Longitude { get; set; }
-        public double GenerationtimeMs { get; set; }
-        public int UtcOffsetSeconds { get; set; }
-        public string Timezone { get; set; } = string.Empty;
-        public string TimezoneAbbreviation { get; set; } = string.Empty;
-        public double Elevation { get; set; }
-        public HourlyUnits HourlyUnits { get; set; } = new();
-        public HourlyData Hourly { get; set; } = new();
     }
 
     public interface IWeatherService
     {
-        public Task<ForecastResponse?> GetForecastAsync(
+        public Task<HourlyForecastResponse?> GetForecastAsync(
             Double Latitude,
             Double Longitude,
             int PastDays,
@@ -74,48 +49,120 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
     {
         private readonly WeatherContext _dbContext;
         private readonly HttpClient _httpClient;
+        private readonly ILogger<WeatherService> _logger;
 
         private readonly IWeatherService _weatherService;
 
-        public WeatherService(WeatherContext dbContext, HttpClient httpClient)
+
+        public WeatherService(WeatherContext dbContext, HttpClient httpClient, ILogger<WeatherService> logger)
         {
             _dbContext = dbContext;
             _httpClient = httpClient;
             _httpClient.BaseAddress = new Uri("https://api.open-meteo.com/v1/");
+            _logger = logger;
         }
-
-        public async Task EnsureDatabaseConnectionAsync()
+    
+        public List<WeatherDto> FromHourlyForecast (HourlyForecastResponse forecast)
         {
-            if (!await this._dbContext.Database.CanConnectAsync())
+            var result = new List<WeatherDto>();
+
+            if (forecast?.hourly.time == null) return result;
+            int count = forecast.hourly.time.Count;
+
+            for (int i = 0; i < count; i++)
             {
-                throw new InvalidOperationException("❌ Could not connect to the database. Check your connection string and DB server.");
+                var dto = new WeatherDto
+                {
+                    Time = DateTime.Parse(forecast.hourly.time[i]),
+                    Temperature = forecast.hourly.temperature_2m?.ElementAtOrDefault(i) ?? 0,
+                    Humidity = forecast.hourly.rain?.ElementAtOrDefault(i) ?? 0,
+                    WindSpeed = forecast.hourly.wind_speed_10m?.ElementAtOrDefault(i) ?? 0
+                };
+                result.Add(dto);
             }
+            return result;
         }
 
-        public async Task<ForecastResponse?> GetForecastAsync(
+       public WeatherPostDto weatherAverage(Weather[] weatherList)
+        {
+            int n = weatherList.Count();
+            double temperatureAverage = MathMethods.Truncate(weatherList.Select(x => x.Temperature)
+                .Aggregate(0, (double acc, double cur) => (acc + cur) / n), 4);
+            double windAverage = MathMethods.Truncate(weatherList.Select(x => x.WindSpeed)
+                .Aggregate(0, (double acc, double cur) => (acc + cur) / n), 4);
+            double humidityAverage = MathMethods.Truncate(weatherList.Select(x => x.Humidity)
+            .Aggregate(0, (double acc, double cur) => (acc + cur) / n), 4);
+
+            return new WeatherPostDto
+            {
+                Time = weatherList[0].Time,
+                Temperature = temperatureAverage,
+                WindSpeed = windAverage,
+                Humidity = humidityAverage,
+            };
+        }
+
+        public IWeather[] weatherListFromHourlyForecastResponse(HourlyForecastResponse hourly)
+        {
+            IWeather[] weatherList = [];
+            for (int i = 0; i < hourly.hourly.time.Count; i++)
+            {
+                weatherList[i] = new()
+                {
+                    Time = DateTime.Parse(hourly.hourly.time[i]),
+                    Humidity = hourly.hourly.rain[i],
+                    Temperature = hourly.hourly.wind_speed_10m[i],
+                    WindSpeed = hourly.hourly.temperature_2m[i],
+                };
+
+                Console.Write(weatherList[i].ToString());
+            }
+            return weatherList;
+        }
+
+        public async Task<HourlyForecastResponse?> GetForecastAsync(
             Double Latitude,
             Double Longitude,
             int PastDays,
             string[] Hourly
             )
+
         {
-            var requestParams = new ForecastRequest
+            var url = $"forecast?latitude={Latitude}&longitude={Longitude}&hourly=temperature_2m,rain,wind_speed_10m&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m";
+
+            try
             {
-                Latitude = Latitude,
-                Longitude = Longitude,
-                PastDays = PastDays,
-                Hourly = Hourly
-            };
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
 
-            Console.Write("requestParmas; ");
-            Console.Write(requestParams.PastDays);
+                _logger.LogDebug("Sending HTTP request {Method} {Uri}. .. ", request.Method, request.RequestUri);
+                var response = await _httpClient.SendAsync(request);
 
-            var url = "forecast" + requestParams.ToQueryString();
-            var result = await _httpClient.GetFromJsonAsync<ForecastResponse>(url);
+                string body = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(body);
 
-            Console.Write(result.ToString());
-
-            return result;
+                var deserialized = JsonSerializer.Deserialize<HourlyForecastResponse>(body);
+                return deserialized;
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "Network/HTTP error while calling {Url}", url);
+                throw; // or return null if you prefer
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Failed to deserialize JSON from {Url}", url);
+                throw;
+            }
+            catch (ValidationException ex)
+            {
+                _logger.LogWarning("Validation failed for {Url}: {Message}", url, ex.Message);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error calling {Url}", url);
+                throw;
+            }
         }
     }
 }
