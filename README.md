@@ -6,6 +6,15 @@ After successful start of the solution in any of above option, check useful endp
 * health check - <http://localhost:5000/weather>
 * version - <http://localhost:5000/version>
 
+### Features
+
+  - [x] Get Weather information from api endpoint
+  - [ ] Store information in a database style
+  - [ ] Use a message broker to make the api communication more decoupled
+  - [x] Get information of calendar events from google calendar
+  - [ ] Get forecast data from the date time specified in each calendar event
+        and return to use each possible dates that it will occur wet time
+
 ### Start Project
 
 Execute `dotnet run --project src/HappyCode.NetCoreBoilerplate.Api` in the root directory.
