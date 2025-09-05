@@ -22,9 +22,9 @@ namespace HappyCode.NetCoreBoilerplate.Core.Repositories
         Task<WeatherCollection> InsertMultiAsync(Weather[] weatherList, CancellationToken cancellationToken);
     }
 
-    internal class WeatherRepository : RepositoryBase<Weather>, IWeatherRepository
+    internal class WeatherRepository : RepositoryBase<Weather, WeatherContext>, IWeatherRepository
     {
-        public WeatherRepository(WeatherContext dbContext, ILogger<WeatherRepository> logger) : base(dbContext)
+        public WeatherRepository(WeatherContext dbContext, ILogger<IWeatherRepository> logger) : base(dbContext)
         { }
 
         public async Task<List<WeatherDto>> GetAllAsync (CancellationToken cancellationToken) {

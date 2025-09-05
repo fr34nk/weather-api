@@ -13,7 +13,9 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
     {
         private readonly ICarService _carService;
 
-        public CarsController(ICarService carService)
+        public CarsController(
+            ICarService carService
+        ): base()
         {
             _carService = carService;
         }

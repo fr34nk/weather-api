@@ -11,7 +11,6 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 
 
-
 namespace HappyCode.NetCoreBoilerplate.Api.Controllers
 {
     [FeatureGate(FeatureFlags.DockerCompose)]
@@ -19,25 +18,28 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
     public class WeatherController : ApiControllerBase
     {
 
-        private readonly ILogger<WeatherController> _logger;
+        private readonly ILogger<GoogleCalendarController> _logger;
         private readonly IWeatherRepository _weatherRepository;
         private readonly IFeatureManager _featureManager;
         private readonly WeatherService _weatherService;
+        private readonly GoogleCalendarHelper _calendarService;
 
         public WeatherController(
-            ILogger<WeatherController> logger,
+            ILogger<GoogleCalendarController> logger,
             WeatherService weatherservice,
             IWeatherRepository weatherRepository,
-            IFeatureManager featureManager
+            IFeatureManager featureManager,
+            GoogleCalendarHelper googleCalendarHelper
         )
         {
             _logger = logger;
             _weatherService = weatherservice;
             _weatherRepository = weatherRepository;
             _featureManager = featureManager;
+            _calendarService = googleCalendarHelper;
         }
 
-        [HttpGet]
+        [HttpGet("weather")]
         [ProducesResponseType(typeof(IEnumerable<WeatherDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAllAsync(
             CancellationToken cancellationToken = default)
@@ -46,7 +48,31 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
             return Ok(result);
         }
 
-        [HttpPost("weather/average")]
+
+        [HttpGet("calendar")]
+        [ProducesResponseType(typeof(WeatherDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetCalendarEventsAsync()
+        {
+
+            var events = _calendarService.GetEvents(10);
+
+            Console.Write(events.Count());
+            Console.Write(events.ToString());
+
+            foreach (var ev in events)
+            {
+                var start = ev.Start.DateTime.HasValue ? ev.Start.DateTime.Value : DateTime.Parse(ev.Start.Date);
+
+                Console.Write(">>>>>>>>>>>>>>>>>>>>>> datetime <<<<<<<<<<<<<<<<<<<<<<<<<<");
+                Console.Write(start.ToString());
+                Console.WriteLine($"{ev.Summary} at {start}");
+            }
+            return Ok(events);
+        }
+
+
+        [HttpPost("average")]
         [ProducesResponseType(typeof(WeatherDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetWeatherAsync(

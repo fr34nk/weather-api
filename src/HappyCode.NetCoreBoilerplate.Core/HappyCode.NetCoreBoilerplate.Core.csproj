@@ -5,6 +5,23 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="src/Settings/credentials.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="Repositories/file.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- <None Include="file.json" CopyToOutputDirectory="PreserveNewest" /> -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Apis.Auth" />
+    <PackageReference Include="Google.Apis.Calendar.v3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
     <PackageReference Include="MySql.EntityFrameworkCore" />
   </ItemGroup>

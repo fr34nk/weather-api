@@ -71,6 +71,7 @@ namespace HappyCode.NetCoreBoilerplate.Api
                 .AddDataAnnotations();
 
             services.AddDbContext<WeatherContext>(options => options.UseMySQL(_configuration.GetConnectionString("MySqlDb")), contextLifetime: ServiceLifetime.Transient, optionsLifetime: ServiceLifetime.Singleton);
+            services.AddDbContext<GoogleCalendarContext>(options => options.UseMySQL(_configuration.GetConnectionString("MySqlDb")), contextLifetime: ServiceLifetime.Transient, optionsLifetime: ServiceLifetime.Singleton);
             services.AddDbContextPool<CarsContext>(options => options.UseSqlServer(_configuration.GetConnectionString("MsSqlDb")), poolSize: 10);
 
             services.Configure<ApiKeySettings>(_configuration.GetSection("ApiKey"));
@@ -86,7 +87,9 @@ namespace HappyCode.NetCoreBoilerplate.Api
             services.AddBooksModule(_configuration);
 
             services.AddFeatureManagement();
+
             services.AddTransient<WeatherService, WeatherService>();
+            services.AddTransient<GoogleCalendarHelper, GoogleCalendarHelper>();
 
 
             var healthChecksBuilder = services.AddHealthChecks()
