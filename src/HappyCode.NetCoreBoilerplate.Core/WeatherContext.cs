@@ -32,7 +32,7 @@ namespace HappyCode.NetCoreBoilerplate.Core
 
                  entity.Property(e => e.Temperature);
 
-                 entity.Property(e => e.Humidity);
+                 entity.Property(e => e.Rain);
              });
         }
     }

@@ -50,7 +50,7 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
             CancellationToken cancellationToken
         )
         {
-            var evs =  _calendarService.GetEvents(10); 
+            var evs = _calendarService.GetEvents(10);
             return Ok(evs);
         }
 

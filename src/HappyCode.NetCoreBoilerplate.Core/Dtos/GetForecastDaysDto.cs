@@ -9,10 +9,32 @@ namespace HappyCode.NetCoreBoilerplate.Core.Dtos
         wind_speed_10m
     }
 
-    public class GetForecastDaysDto
+    public class GetWeatherReqDto
     {
         public double Latitude { get; set; }
         public double Longitude { get; set; }
         public int PastDays { get; set; }
+        public int ForecastDays { get; set; }
+
+
+        // public DateTime date { get; set; }
+
     }
+
+    public class GetForecastDaysDto
+    {
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+
+    }
+
+    public class GetRainyEventsRequestDto
+        : GetForecastDaysDto
+    {
+        public string startDate { get; set; }
+
+        // "2025-09-06T13:00"
+        public string endDate { get; set;  }
+    }
+
 }

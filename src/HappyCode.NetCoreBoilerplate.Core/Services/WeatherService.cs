@@ -13,6 +13,10 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.ComponentModel.DataAnnotations;
 using HappyCode.NetCoreBoilerplate.Core.Models;
+using Org.BouncyCastle.Asn1.Cms;
+using ZstdSharp.Unsafe;
+using Org.BouncyCastle.Tls.Crypto.Impl;
+using Google.Apis.Calendar.v3.Data;
 
 
 namespace HappyCode.NetCoreBoilerplate.Core.Services
@@ -23,7 +27,7 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
 
         public double Longitude { get; set; }
 
-        public int PastDays { get; set; } = 0;
+        public int ForecastDays { get; set; } = 0;
 
         // public string[] Hourly { get; set; } = Array.Empty<string>();
         public string Hourly { get; set; }
@@ -31,7 +35,7 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
         public string ToQueryString()
         {
             var HourlyParam = string.Join(",", Hourly);
-            return $"?latitude={Latitude}&longitude={Longitude}&past_days={PastDays}&forecast_days=3&hourly=temperature_2m,relative_humidity_2m,rain,wind_speed_10m";
+            return $"?latitude={Latitude}&longitude={Longitude}&forecast_days={ForecastDays}&forecast_days=3&hourly=temperature_2m,relative_humidity_2m,rain,wind_speed_10m";
         }
     }
 
@@ -40,7 +44,7 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
         public Task<HourlyForecastResponse?> GetForecastAsync(
             Double Latitude,
             Double Longitude,
-            int PastDays,
+            int ForecastDays,
             string[] Hourly
         );
     }
@@ -75,7 +79,7 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
                 {
                     Time = DateTime.Parse(forecast.hourly.time[i]),
                     Temperature = forecast.hourly.temperature_2m?.ElementAtOrDefault(i) ?? 0,
-                    Humidity = forecast.hourly.rain?.ElementAtOrDefault(i) ?? 0,
+                    Rain = forecast.hourly.rain?.ElementAtOrDefault(i) ?? 0,
                     WindSpeed = forecast.hourly.wind_speed_10m?.ElementAtOrDefault(i) ?? 0
                 };
                 result.Add(dto);
@@ -83,24 +87,73 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
             return result;
         }
 
-       public WeatherPostDto weatherAverage(Weather[] weatherList)
+       public WeatherPostDto? weatherAverage(Weather[] weatherList)
         {
+
+            if (weatherList.Count() <= 0) { return null; }
+
             int n = weatherList.Count();
             double temperatureAverage = MathMethods.Truncate(weatherList.Select(x => x.Temperature)
-                .Aggregate(0, (double acc, double cur) => (acc + cur) / n), 4);
+                // .Aggregate(0, (double acc, double cur) => (acc + cur) / n), 4);
+                .Aggregate(0, (double acc, double cur) => (acc + cur))/ n, 4);
             double windAverage = MathMethods.Truncate(weatherList.Select(x => x.WindSpeed)
-                .Aggregate(0, (double acc, double cur) => (acc + cur) / n), 4);
-            double humidityAverage = MathMethods.Truncate(weatherList.Select(x => x.Humidity)
-            .Aggregate(0, (double acc, double cur) => (acc + cur) / n), 4);
+                .Aggregate(0, (double acc, double cur) => (acc + cur))/ n, 4);
+            double humidityAverage = MathMethods.Truncate(weatherList.Select(x => x.Rain)
+            .Aggregate(0, (double acc, double cur) => (acc + cur))/ n, 4);
 
             return new WeatherPostDto
             {
                 Time = weatherList[0].Time,
                 Temperature = temperatureAverage,
                 WindSpeed = windAverage,
-                Humidity = humidityAverage,
+                Rain = humidityAverage,
             };
+
         }
+
+
+        // TODO: Normalize to receive two dates instead of startdate and hours quantity
+        public List<WeatherDto> weatherRangeFromForecastResponse (DateTimeOffset datetime, Nullable<int> hourRange, HourlyForecastResponse forecast)
+        {
+            // get a hour before and after the target hour
+            var weatherRange = new List<WeatherDto>();
+            int n = forecast.hourly.time.Count();
+
+            var dcurrent = forecast.hourly.time.FindIndex((x) => {
+                return x == datetime.ToString("yyyy-MM-dd'T'HH:mm");
+            });
+            if (dcurrent < 0) { return []; }
+
+            if (hourRange == null)
+            {
+                hourRange = (dcurrent <= 1) ? 1 : 3;
+            }
+
+            int startRange = dcurrent - ((int)hourRange / 2);
+            int endRange = dcurrent + ((int)hourRange / 2);
+
+            for (int i = startRange; i <= endRange; i++)
+            {
+                weatherRange.Add(new WeatherDto
+                {
+                    Time = DateTime.Parse(forecast.hourly.time[i]),
+                    Rain = forecast.hourly.temperature_2m?.ElementAtOrDefault(i) ?? 0,
+                    Temperature = forecast.hourly.temperature_2m?.ElementAtOrDefault(i) ?? 0,
+                    WindSpeed = forecast.hourly.wind_speed_10m?.ElementAtOrDefault(i) ?? 0
+                });
+        }
+
+
+            // Event[] eventList = res
+            //     .Select(
+            //         (res) => res.Start.Date == startDate.ToString("yyyy-MM-dd'T'HH:mm:ss-z")
+            //     );
+
+
+
+            return weatherRange;
+        }
+
 
         public IWeather[] weatherListFromHourlyForecastResponse(HourlyForecastResponse hourly)
         {
@@ -110,7 +163,7 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
                 weatherList[i] = new()
                 {
                     Time = DateTime.Parse(hourly.hourly.time[i]),
-                    Humidity = hourly.hourly.rain[i],
+                    Rain = hourly.hourly.rain[i],
                     Temperature = hourly.hourly.wind_speed_10m[i],
                     WindSpeed = hourly.hourly.temperature_2m[i],
                 };
@@ -123,12 +176,13 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
         public async Task<HourlyForecastResponse?> GetForecastAsync(
             Double Latitude,
             Double Longitude,
-            int PastDays,
+            int ForecastDays,
             string[] Hourly
             )
 
         {
-            var url = $"forecast?latitude={Latitude}&longitude={Longitude}&hourly=temperature_2m,rain,wind_speed_10m&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m";
+            // var url = $"forecast?latitude={Latitude}&longitude={Longitude}&hourly=temperature_2m,rain,wind_speed_10m&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m";
+            var url = $"forecast?latitude={Latitude}&longitude={Longitude}&hourly=temperature_2m,rain,wind_speed_10m&forecast_days={ForecastDays}";
 
             try
             {

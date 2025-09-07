@@ -10,7 +10,7 @@ namespace HappyCode.NetCoreBoilerplate.Core.Extensions
             return new WeatherDto
             {
                 Id = source.Id,
-                Humidity = source.Humidity,
+                Rain = source.Rain,
                 Time = source.Time,
                 Temperature = source.Temperature,
                 WindSpeed = source.WindSpeed,

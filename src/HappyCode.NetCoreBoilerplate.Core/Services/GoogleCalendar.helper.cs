@@ -81,15 +81,54 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services {
             request.OrderBy = EventsResource.ListRequest.OrderByEnum.StartTime;
 
             Events events = request.Execute();
-
-            Console.Write(">>>>>>>>>>>>>>>>>>>>>> events <<<<<<<<<<<<<<<<<<<<<<<<<<");
-            Console.Write(events.ToString());
-
             return events.Items != null ? new List<Event>(events.Items) : new List<Event>();
+        }
 
+
+        public double hoursFromTimeRange (DateTimeOffset start, DateTimeOffset end) {
+            return start > end
+                ? start.Subtract(end).TotalHours
+                : end.Subtract(start).TotalHours;
+        }
+
+        public List<Event> GetEventByDateAndHourRange(DateTimeOffset startDate,  DateTimeOffset endDate)
+        {
+            var service = GetCalendarService();
+            EventsResource.ListRequest request = service.Events.List("primary");
+
+            request.TimeMin = DateTime.UtcNow;   // only future events
+            request.ShowDeleted = false;
+            request.SingleEvents = true;         // expand recurring events
+            request.OrderBy = EventsResource.ListRequest.OrderByEnum.StartTime;
+
+            Events events = request.Execute();
+            if (events.Items != null)
+            {
+                var res = new List<Event>(events.Items);
+                return res
+                    .FindAll((ev) =>
+                    {
+                        if (!String.IsNullOrEmpty(ev?.Start?.DateTimeRaw))
+                        {
+                            var evDateTime = DateTimeOffset.Parse(ev.Start.DateTimeRaw);
+                            var targetDatetime = startDate;
+
+                            var hourQtyRange = this.hoursFromTimeRange(startDate, endDate);
+
+                            bool inRange = evDateTime >= startDate && evDateTime <= endDate;
+                            return inRange;
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                    });
+            }
+            else
+            {
+                return new List<Event>();
+            }
         }
     }
-
-
 }
 

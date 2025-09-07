@@ -19,8 +19,8 @@ namespace HappyCode.NetCoreBoilerplate.Core.Models
         public double Temperature { get; set; }
 
         [Required]
-        [Column("humidity", TypeName = "double")]
-        public double Humidity { get; set; }
+        [Column("rain", TypeName = "double")]
+        public double Rain { get; set; }
 
         [Required]
         [Column("wind_speed", TypeName = "double")]

@@ -5,6 +5,6 @@ namespace HappyCode.NetCoreBoilerplate.Core.Dtos
     public class WeatherPutDto
     {
         [Required]
-        public int Humidity { get; set; }
+        public int Rain { get; set; }
     }
 }

@@ -59,7 +59,7 @@ namespace HappyCode.NetCoreBoilerplate.Core.Repositories
             {
                 Id = emp.Id,
                 Time = emp.Time,
-                Humidity = emp.Humidity,
+                Rain = emp.Rain,
                 Temperature = emp.Temperature,
                 WindSpeed = emp.WindSpeed,
             };
@@ -80,7 +80,7 @@ namespace HappyCode.NetCoreBoilerplate.Core.Repositories
             var weather = new Weather
             {
                 Time =  weatherPostDto.Time,
-                Humidity = weatherPostDto.Humidity,
+                Rain = weatherPostDto.Rain,
                 Temperature = weatherPostDto.Temperature,
                 WindSpeed = weatherPostDto.WindSpeed,
             };
@@ -116,7 +116,7 @@ namespace HappyCode.NetCoreBoilerplate.Core.Repositories
             if (emp is null)
             { return null; }
 
-            emp.Id = weatherPutDto.Humidity;
+            emp.Id = weatherPutDto.Rain;
             await DbContext.SaveChangesAsync(cancellationToken);
             return emp.MapToDto();
         }

@@ -9,6 +9,10 @@ using HappyCode.NetCoreBoilerplate.Core.Services;
 using HappyCode.NetCoreBoilerplate.Core.Models;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Builder.Extensions;
+using NetTopologySuite.Mathematics;
+using Microsoft.IdentityModel.Tokens;
+using NetTopologySuite.IO;
 
 
 namespace HappyCode.NetCoreBoilerplate.Api.Controllers
@@ -49,26 +53,85 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
         }
 
 
-        [HttpGet("calendar")]
-        [ProducesResponseType(typeof(WeatherDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetCalendarEventsAsync()
+        [HttpPost("next_rainy_events")]
+        // [ProducesResponseType(typeof(IEnumerable<WeatherDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(IEnumerable<Weather>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetRainyEventsAsync(
+            [FromBody] GetRainyEventsRequestDto body,
+            CancellationToken cancellationToken = default)
         {
+            var parsedEndDate = DateTimeOffset.Parse(body.endDate);
+            var parsedStartDate = DateTimeOffset.Parse(body.startDate);
 
-            var events = _calendarService.GetEvents(10);
+            var eventsByDate = _calendarService.GetEventByDateAndHourRange(parsedStartDate, parsedEndDate);
 
-            Console.Write(events.Count());
-            Console.Write(events.ToString());
+            if (eventsByDate.Count() > 0) {
 
-            foreach (var ev in events)
-            {
-                var start = ev.Start.DateTime.HasValue ? ev.Start.DateTime.Value : DateTime.Parse(ev.Start.Date);
+                Weather[] weatherList = [];
+                // var rangeHours = _calendarService.hoursFromTimeRange(parsedStartDate, parsedEndDate);
+                // var days = rangeHours > 24 ? int.CreateTruncating(rangeHours / 24) : 1;
 
-                Console.Write(">>>>>>>>>>>>>>>>>>>>>> datetime <<<<<<<<<<<<<<<<<<<<<<<<<<");
-                Console.Write(start.ToString());
-                Console.WriteLine($"{ev.Summary} at {start}");
+                for (int _ievent = 0; _ievent < eventsByDate.Count(); _ievent++) {
+                    var currentEvent = eventsByDate[_ievent];
+
+                    // TODO need to check periodic events
+                    var parsedEventStartDate = DateTimeOffset.Parse(currentEvent.Start.DateTimeRaw);
+                    var parsedEventEndDate = DateTimeOffset.Parse(currentEvent.End.DateTimeRaw);
+
+                    // Is day in range of forecast api ? calculate it : return (cant forecast)  
+                    //  - [16 days for api current being used]
+
+                    var curDateTime = DateTimeOffset.Now;
+                    if (curDateTime.AddDays(16) < parsedEventEndDate)
+                        return Ok(String.Format("Couldnt forecast the event cause of limitation of days of forecast api. End time event date {enddate}", parsedEventEndDate));
+
+                    var neededForecastDays = Math.Ceiling(parsedEventEndDate.Subtract(curDateTime).TotalDays);
+
+                    // Apend at least 2 hours before and 1 hour before and after ;
+
+                    // var days = eventRangeHours > 24 ? int.CreateTruncating(eventRangeHours / 24) : 1;
+                    var forecastResult = await _weatherService.GetForecastAsync(
+                        body.Latitude,
+                        body.Longitude,
+                        // days,
+                        int.CreateTruncating(neededForecastDays),
+                        ["temperature_2m", "relative_humidity_2m", "wind_speed_10m"]
+                    );
+
+                    var eventRangeHours = _calendarService.hoursFromTimeRange(
+                        parsedEventStartDate.AddHours(-1),
+                        parsedEventEndDate.AddHours(1)
+                    );
+
+                    var result = _weatherService.weatherRangeFromForecastResponse(
+                        parsedStartDate,
+                        int.CreateTruncating(eventRangeHours),
+                        forecastResult
+                    );
+
+                    weatherList = result
+                        .Select(res => {
+                            return new Weather
+                            {
+                                Time = res.Time,
+                                Temperature = res.Temperature,
+                                Rain = res.Rain,
+                                WindSpeed = res.WindSpeed
+                            };
+                        })
+                        .ToArray();
+                    var average = _weatherService.weatherAverage(weatherList);
+                }
+
+                // return Ok(eventsByDate);
+                // return Ok(weatherList.Cast<Weather>().ToList());
+                return Ok(weatherList);
             }
-            return Ok(events);
+
+            var msg = String.Format("No event found in this date rage {0} {1}", parsedStartDate, parsedEndDate);
+            Console.WriteLine(">>>>>>>>>>>>>>>>>>>>>> msg <<<<<<<<<<<<<<<<<<<<<<<<<<");
+            Console.WriteLine(msg.ToString());
+            return Ok(msg);
         }
 
 
@@ -76,14 +139,15 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
         [ProducesResponseType(typeof(WeatherDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetWeatherAsync(
-            GetForecastDaysDto forecastFields,
+            GetWeatherReqDto forecastFields,
             CancellationToken cancellationToken = default
         )
         {
+
             var forecastResult = await _weatherService.GetForecastAsync(
                 forecastFields.Latitude,
                 forecastFields.Longitude,
-                forecastFields.PastDays,
+                forecastFields.ForecastDays,
                 ["temperature_2m", "relative_humidity_2m", "wind_speed_10m"]
             );
 
@@ -93,7 +157,7 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
                 {
                     Time = dto.Time,
                     Temperature = dto.Temperature,
-                    Humidity = dto.Humidity,
+                    Rain = dto.Rain,
                     WindSpeed = dto.WindSpeed
                 })
                 .ToArray();
