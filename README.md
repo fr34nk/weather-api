@@ -157,14 +157,6 @@ To do that, go to `src/HappyCode.NetCoreBoilerplate.Db` directory and execute `d
 
 * any idea? Please [create an issue](https://github.com/lkurzyniec/netcore-boilerplate/issues/new).
 
-## Be like a star, give me a star! :star:
 
-If:
-
-* you like this repo/code,
-* you learn something,
-* you are using it in your project/application,
-
-then please give me a `star`, appreciate my work. Thanks!
 
 
