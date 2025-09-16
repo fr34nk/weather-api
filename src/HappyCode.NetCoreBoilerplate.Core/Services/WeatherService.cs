@@ -66,10 +66,9 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
             _logger = logger;
         }
     
-        public List<WeatherDto> FromHourlyForecast (HourlyForecastResponse forecast)
+        public WeatherDto[] weatherDtoListFromHourlyForecast (HourlyForecastResponse forecast)
         {
-            var result = new List<WeatherDto>();
-
+            WeatherDto[] result = [];
             if (forecast?.hourly.time == null) return result;
             int count = forecast.hourly.time.Count;
 
@@ -82,7 +81,7 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
                     Rain = forecast.hourly.rain?.ElementAtOrDefault(i) ?? 0,
                     WindSpeed = forecast.hourly.wind_speed_10m?.ElementAtOrDefault(i) ?? 0
                 };
-                result.Add(dto);
+                result = result.Append(dto).ToArray();
             }
             return result;
         }
@@ -108,18 +107,23 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
                 WindSpeed = windAverage,
                 Rain = humidityAverage,
             };
-
         }
 
+        public bool weatherFilterDateRangePredicate(DateTimeOffset start, DateTimeOffset end, WeatherDto ev)
+        {
+            DateTimeOffset evDateTime = DateTimeOffset.Parse(ev.Time.ToString());
+            return end >= evDateTime && evDateTime >= start;
+        }
 
         // TODO: Normalize to receive two dates instead of startdate and hours quantity
-        public List<WeatherDto> weatherRangeFromForecastResponse (DateTimeOffset datetime, Nullable<int> hourRange, HourlyForecastResponse forecast)
+        public List<WeatherDto> weatherRangeFromForecastResponse(DateTimeOffset datetime, Nullable<int> hourRange, HourlyForecastResponse forecast)
         {
             // get a hour before and after the target hour
             var weatherRange = new List<WeatherDto>();
             int n = forecast.hourly.time.Count();
 
-            var dcurrent = forecast.hourly.time.FindIndex((x) => {
+            var dcurrent = forecast.hourly.time.FindIndex((x) =>
+            {
                 return x == datetime.ToString("yyyy-MM-dd'T'HH:mm");
             });
             if (dcurrent < 0) { return []; }
@@ -173,6 +177,51 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
             return weatherList;
         }
 
+        public async Task<WeatherDto[]> GetForecastAndFilterByDateRangeAsync(
+            Double Latitude,
+            Double Longitude,
+            DateTimeOffset startDate,
+            DateTimeOffset endDate,
+            string[] Hourly
+            )
+        {
+            WeatherDto[] weatherList = [];
+            var hours = (endDate - DateTimeOffset.Now).Hours;
+
+            var days = 0;
+            if (DateTimeOffset.Now.AddHours(hours).Day == DateTimeOffset.Now.AddDays(1).Day) {
+                days = 2;
+            } else {
+                days = hours < 24
+                    ? 1
+                    : DateTimeOffset.Now.AddHours(hours).Day;
+            }
+
+            var result = await this.GetForecastAsync(Latitude, Longitude, days, Hourly);
+            if (result != null) {
+                var weatherRange = this.weatherDtoListFromHourlyForecast(result)
+                    .Where(w =>
+                    {
+                        var result = this.weatherFilterDateRangePredicate(startDate, endDate, w);
+                        return result;
+                    })
+                    .Select(
+                        (w) =>
+                        {
+                            return new WeatherDto
+                            {
+                                Rain = w.Rain,
+                                Temperature = w.Temperature,
+                                Time = w.Time,
+                                WindSpeed = w.WindSpeed
+                            };
+                        }
+                    ).ToArray();
+                return weatherRange;
+            }
+            return weatherList;
+        }
+
         public async Task<HourlyForecastResponse?> GetForecastAsync(
             Double Latitude,
             Double Longitude,
@@ -195,6 +244,7 @@ namespace HappyCode.NetCoreBoilerplate.Core.Services
                 using var doc = JsonDocument.Parse(body);
 
                 var deserialized = JsonSerializer.Deserialize<HourlyForecastResponse>(body);
+
                 return deserialized;
             }
             catch (HttpRequestException ex)

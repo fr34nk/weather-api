@@ -10,6 +10,8 @@ using System.Threading;
 
 namespace HappyCode.NetCoreBoilerplate.Core.Services {
 
+namespace HappyCode.NetCoreBoilerplate.Core.Services
+{
     public class GoogleCalendarHelper
     {
         private static string[] Scopes = { CalendarService.Scope.Calendar };

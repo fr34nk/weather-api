@@ -65,6 +65,7 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
 
             var eventsByDate = _calendarService.GetEventByDateAndHourRange(parsedStartDate, parsedEndDate);
 
+            WeatherPostDto weatherAverage;
             if (eventsByDate.Count() > 0) {
 
                 Weather[] weatherList = [];
@@ -120,11 +121,10 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
                             };
                         })
                         .ToArray();
-                    var average = _weatherService.weatherAverage(weatherList);
-                }
 
-                // return Ok(eventsByDate);
-                // return Ok(weatherList.Cast<Weather>().ToList());
+                    weatherAverage = _weatherService.weatherAverage(weatherList);
+                    return Ok(weatherAverage);
+                }
                 return Ok(weatherList);
             }
 
@@ -138,21 +138,20 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
         [HttpPost("average")]
         [ProducesResponseType(typeof(WeatherDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetWeatherAsync(
-            GetWeatherReqDto forecastFields,
+        public async Task<IActionResult> GetWeatherAverageAsync(
+            [FromBody] GetRainyEventsRequestDto body,
             CancellationToken cancellationToken = default
         )
         {
-
-            var forecastResult = await _weatherService.GetForecastAsync(
-                forecastFields.Latitude,
-                forecastFields.Longitude,
-                forecastFields.ForecastDays,
+            var weatherForecastList = await _weatherService.GetForecastAndFilterByDateRangeAsync(
+                body.Latitude,
+                body.Longitude,
+                DateTimeOffset.Parse(body.startDate),
+                DateTimeOffset.Parse(body.endDate),
                 ["temperature_2m", "relative_humidity_2m", "wind_speed_10m"]
             );
 
-            List<WeatherDto> weatherList = _weatherService.FromHourlyForecast(forecastResult);
-            Weather[] modelArray = weatherList
+            Weather[] modelArray = weatherForecastList 
                 .Select(dto => new Weather
                 {
                     Time = dto.Time,
@@ -163,10 +162,39 @@ namespace HappyCode.NetCoreBoilerplate.Api.Controllers
                 .ToArray();
 
             var average = _weatherService.weatherAverage(modelArray);
+            if (average != null)
+            {
             _logger.LogDebug("Average: {Average}", average.ToString());
-
             Weather insertedWeather = await _weatherRepository.InsertAsync(average, cancellationToken);
             return Ok(insertedWeather);
+            }
+            else
+            {
+                return Ok(String.Format("Could not get forecast for this time range: {0} {1}", body.startDate.ToString(), body.endDate.ToString()));
+            }
+        }
+
+        /**
+         * forecast - 
+        **/
+        [HttpPost("forecast")]
+        [ProducesResponseType(typeof(IEnumerable<WeatherDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetWeatherForecastAsync(
+            // [FromBody] GetWeatherReqDto forecastFields,
+            [FromBody] GetRainyEventsRequestDto body,
+            CancellationToken cancellationToken = default
+        )
+        {
+            var list = await _weatherService.GetForecastAndFilterByDateRangeAsync(
+                body.Latitude,
+                body.Longitude,
+                DateTimeOffset.Parse(body.startDate),
+                DateTimeOffset.Parse(body.endDate),
+                ["temperature_2m", "relative_humidity_2m", "wind_speed_10m"]
+            );
+
+            return Ok(list);
         }
 
 
